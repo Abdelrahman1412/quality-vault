@@ -1,0 +1,70 @@
+# quality-vault configuration: worked example for the fictional company "Acme HR".
+# Every option is documented in the README ("Configuration reference").
+
+project: Acme HR
+vault_dir: vault                        # where the Markdown vault lives
+
+subject:                                # the app this vault describes
+  path: ../golden-seed                  # a checkout of the app, relative to this file
+  env_var: QV_SUBJECT                   # if set, this env var overrides `path` (CI uses it)
+  scan:                                 # product code the vault must cover; globs from the app root
+    - src/golden_seed/hrapp/*.py
+  tests: tests                          # where test references in test cases point
+  seed_contract: golden-seed.yaml       # the seed's state contract; data inventories cite its ids
+
+test_layers:
+  order: [unit, service, property, contract, api, e2e]   # lowest first
+  justify_from: api                     # cases at this layer or above must say why lower can't prove it
+
+# Every top-level function and class in `scan` must be owned by exactly one module,
+# or listed under `ignore` with a reason. New code with no owner fails `qv check`.
+modules:
+  organisation:
+    prefix: "ORG"
+    symbols:
+      - models.Department
+      - models.Role
+      - models.Employee
+      - models.EmployeeStatus
+      - services.create_department
+      - services.create_role
+      - services.hire_employee
+  leave:
+    prefix: "LV"
+    symbols:
+      - models.LeaveKind
+      - models.LeaveStatus
+      - models.LeaveRequest
+      - services.overlap_days
+      - services.request_leave
+      - services._check_decider
+      - services.approve_leave
+      - services.reject_leave
+      - services.cancel_leave
+  payroll:
+    prefix: "PAY"
+    symbols:
+      - models.PayrollStatus
+      - models.PayrollRun
+      - models.Payslip
+      - services.compute_payslip
+      - services.month_period
+      - services.create_payroll_run
+      - services.start_processing
+      - services.mark_paid
+  offboarding:
+    prefix: "OFF"
+    symbols:
+      - services.terminate_employee
+  notifications:
+    prefix: "NTF"
+    symbols:
+      - models.OutboxMessage
+      - mail.Mailer
+      - mail.OutboxMailer
+      - mail.SmtpMailer
+
+ignore:
+  models.Base: ORM base class; no behaviour.
+  models._enum: column type helper; no behaviour.
+  services.ServiceError: the error every rule raises; covered by each rule's test cases.

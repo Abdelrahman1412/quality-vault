@@ -1,0 +1,79 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * *"   # nightly: has the app moved on without the vault?
+
+jobs:
+  tool:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e '.[dev]'
+      - run: ruff check . && ruff format --check .
+      - run: pytest
+
+  vault:
+    # The vault must hold for the exact release it says it describes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: mark
+        run: echo "sha=$(sed -n 's/^subject_sha: *//p' vault/05-Release-Maintenance/watermark.yaml)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: Abdelrahman1412/golden-seed
+          ref: ${{ steps.mark.outputs.sha }}
+          path: subject
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[dev]' -e './subject[dev]'
+      - name: Check the vault against the app
+        run: qv check --warnings
+        env:
+          QV_SUBJECT: subject
+      - name: Plant three drifts and prove each one is caught
+        run: scripts/demo-drift.sh "$PWD/subject"
+      - name: Re-verify open findings (report only)
+        run: qv finding reverify
+        env:
+          QV_SUBJECT: subject
+
+  freshness:
+    # Fails when the app's main has changed since the vault last caught up:
+    # that is the signal to run the release maintenance process.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Abdelrahman1412/golden-seed
+          path: subject
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: What changed since the watermark
+        run: qv sweep
+        env:
+          QV_SUBJECT: subject
+      - name: Does the vault still hold against main
+        if: always()
+        run: qv check
+        env:
+          QV_SUBJECT: subject
