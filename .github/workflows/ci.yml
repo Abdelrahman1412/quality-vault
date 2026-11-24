@@ -30,7 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: mark
-        run: echo "sha=$(sed -n 's/^subject_sha: *//p' vault/05-Release-Maintenance/watermark.yaml)" >> "$GITHUB_OUTPUT"
+        run: |
+          sha="$(sed -n 's/^subject_sha: *//p' vault/05-Release-Maintenance/watermark.yaml)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: Abdelrahman1412/golden-seed
