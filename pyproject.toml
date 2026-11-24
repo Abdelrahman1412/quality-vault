@@ -1,0 +1,39 @@
+[project]
+name = "quality-vault"
+version = "0.1.0"
+description = "A quality vault that stays true: behaviour specs, test cases, data inventories and a findings register, checked against the code on every change."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Abdelrahman Tarek" }]
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+qv = "quality_vault.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quality_vault"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["quality_vault"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # Markdown table fixtures read best on one line
